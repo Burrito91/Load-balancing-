@@ -1,4 +1,4 @@
-# Load-balancing-auto scaling web app
+[Manual_Deployment_Guide for load balanced auto scaling web app.md](https://github.com/user-attachments/files/20844491/Manual_Deployment_Guide.for.load.balanced.auto.scaling.web.app.md)# Load-balancing-auto scaling web app
 #This project provisions a load-balanced, auto-scaling web application on AWS. When the EC2 instances hit 100% CPU usage, the Auto Scaling Group automatically scales from 2 to 4 instances.
 
 
@@ -144,18 +144,74 @@ How to simulate high CPU usage using the stress tool
 That AWS Auto Scaling works out of the box with minimal configuration
 
 
+## Deployment method
+## 🚀 How to Deploy This Project on AWS
 
-## 🧩 Deployment Method
+### 1. Create a Launch Template
+- Go to *EC2 > Launch Templates*.
+- Click *Create launch template*.
+- Fill in:
+  - Name (e.g. web-app-template)
+  - Amazon Linux 2 AMI
+  - t2.micro instance type
+  - User data script to install Apache and the sample web page:
+    
+    #!/bin/bash
+    yum update -y
+    yum install -y httpd
+    systemctl start httpd
+    systemctl enable httpd
+    echo "<h1>Welcome to my Load Balanced Auto Scaling Web App!</h1>" > /var/www/html/index.html
+    
 
-All resources in this project are deployed directly within the AWS Console — not via GitHub or CI/CD pipelines.
+---
 
-This GitHub repository is used to:
-- Document the full architecture and steps
-- Share scripts used for provisioning and testing
-- Host the project diagram and demo video
-- Serve as a reference for anyone looking to reproduce the project
+### 2. Create an Auto Scaling Group
+- Go to *EC2 > Auto Scaling > Auto Scaling Groups*.
+- Click *Create Auto Scaling group*.
+- Attach the *Launch Template* you created.
+- Set:
+  - *Minimum capacity:* 2  
+  - *Desired capacity:* 2  
+  - *Maximum capacity:* 4
+- Choose *2 subnets* in different Availability Zones (AZs).
+- Enable *Application Load Balancer* in the next step (see below).
+- Set *Scaling policy*:
+  - Target tracking policy: *Average CPU utilization = 80%*.
 
-> Note: No infrastructure is deployed directly from this repository.
+---
+
+### 3. Create an Application Load Balancer (ALB)
+- Go to *EC2 > Load Balancers > Create Load Balancer > Application Load Balancer*.
+- Name it (e.g., web-alb)
+- Scheme: *Internet-facing*, IP type: *IPv4*
+- Choose *at least 2 subnets* in different AZs.
+- Create a new *security group* that allows HTTP (port 80).
+- Create a new *Target Group* of type *EC2 instances*:
+  - Protocol: HTTP, Port: 80
+- Listener: Add a rule to forward traffic to this target group.
+
+---
+
+### 4. Attach ASG to the Target Group
+- Back in the Auto Scaling Group setup:
+  - Select the *Target Group* you just created to register instances automatically.
+
+---
+
+### 5. Run CPU Stress Script (SSH into One EC2 Instance)
+- Once your instances are running and reachable via the ALB, SSH into one instance:
+  ```bash
+  ssh -i your-key.pem ec2-user@<Public-IP>
+Se
+
+### 6. Run the cpu stress tool to simulate high Load 
+sudo amazon-linux-extras enable epel
+sudo yum install -y epel-release
+sudo yum install -y stress
+stress --cpu $(nproc)
+
+
 
 ## ✅ Conclusion
 This project demonstrates how to build a simple yet scalable and highly available web application on AWS using core services like Launch Templates, Auto Scaling Groups, and Application Load Balancers,By using a startup script to automatically install a web server and a stress tool to simulate high CPU usage, I was able to observe real-time scaling behavior in response to demand.
